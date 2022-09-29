@@ -2,51 +2,75 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome import service
 import time
+import os
 
+# Get environment variable
+DRIVE_PATH = os.environ["DRIVE_PATH"]
+
+# Initializing selenium
 URL = "http://orteil.dashnet.org/experiments/cookie/"
-chrome_driver_path = "/Users/katsunoyuutou/Development/chromedriver"
+chrome_driver_path = DRIVE_PATH
 chrome_service = service.Service(executable_path=chrome_driver_path)
 driver = webdriver.Chrome(service=chrome_service)
-
 driver.get(URL)
+
+# Get cookie
 cookie = driver.find_element(By.ID, "cookie")
 count = driver.find_element(By.ID, "money")
-options = driver.find_elements(By.CLASS_NAME, "grayed")
 
+# Get store's information
+products = driver.find_elements(By.CSS_SELECTOR, "#store div")
+product_ids = [product.get_attribute("id") for product in products]
 
-timeout = time.time() + 60*5
+# Get time
+timeout = time.time() + 60 * 5
 buy = time.time() + 5
-while True:
-    num = count.text.split(",")
-    cookie_num = int("".join(num))
-    cookie.click()
-    if time.time() > timeout:
-        break
-    else:
-        if time.time() > buy:
-            if 15 <= cookie_num < 100:
-                cursor = driver.find_element(By.ID, "buyCursor")
-                cursor.click()
-            if 100 <= cookie_num < 500:
-                grandma = driver.find_element(By.ID, "buyGrandma")
-                grandma.click()
-            if 500 <= cookie_num < 2000:
-                factory = driver.find_element(By.ID, "buyFactory")
-                factory.click()
-            if 2000 <= cookie_num < 7000:
-                mine = driver.find_element(By.ID, "buyMine")
-                mine.click()
-            if 7000 <= cookie_num < 50000:
-                shipment = driver.find_element(By.ID, "buyShipment")
-                shipment.click()
-            if 50000 <= cookie_num < 1000000:
-                alchemy_lab = driver.find_element(By.ID, "buyAlchemy lab")
-                alchemy_lab.click()
-            if 1000000 <= cookie_num < 123456789:
-                portal = driver.find_element(By.ID, "buyPortal")
-                portal.click()
-            if 123456789 <= cookie_num:
-                time_machine = driver.find_element(By.ID, "buyTime machine")
-                time_machine.click()
-            buy = time.time() + 5
 
+is_on = True
+while is_on:
+    cookie.click()
+
+    # Every 5 seconds
+    if time.time() > buy:
+
+        # Get price
+        prices = driver.find_elements(By.CSS_SELECTOR, "#store b")
+        price_list = []
+
+        # Convert to int
+        for price in prices[:8]:
+            str_price = price.text
+            if str_price != "":
+                int_price = int(str_price.split("-")[1].strip().replace(",", ""))
+                price_list.append(int_price)
+
+        # Associate price with id
+        product_dict = {}
+        for n in range(len(price_list)):
+            product_dict[price_list[n]] = product_ids[n]
+
+        # Get current cookie count
+        cookie_count = driver.find_element(By.ID, "money").text
+        if "," in cookie_count:
+            cookie_count = cookie_count.replace(",", "")
+        cookie_count = int(cookie_count)
+
+        # When I  will buy something
+        for cost, product_id in product_dict.items():
+            if cookie_count > cost:
+                highest_product_id = product_id
+        result = driver.find_element(By.ID, highest_product_id)
+        result.click()
+
+        # reset time.time()
+        buy = time.time() + 5
+
+    # After 5 minutes
+    if time.time() > timeout:
+        cps = driver.find_element(By.ID, "cps").text
+        print(cps)
+        is_on = False
+        break
+
+if not is_on:
+    driver.quit()
